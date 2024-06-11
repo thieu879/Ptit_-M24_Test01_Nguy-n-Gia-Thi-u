@@ -1,84 +1,122 @@
 "use strict";
-// add text
-const point1Button = document.getElementById("point1");
-const valueOfPoint1 = point1Button.innerText;
-console.log(valueOfPoint1);
-let point1 = document.getElementById("point1");
-let point2 = document.getElementById("point2");
-let point3 = document.getElementById("point3");
-let point4 = document.getElementById("point4");
-let point5 = document.getElementById("point5");
-let point6 = document.getElementById("point6");
-let point7 = document.getElementById("point7");
-let point8 = document.getElementById("point8");
-let point9 = document.getElementById("point9");
-let point10 = document.getElementById("point10");
-console.log(point1);
-let point;
-function namePoint(index) {
-    const pointButtons = document.querySelectorAll(".point button");
-    pointButtons.forEach(button => {
-        const buttonIndex = parseInt(button.id.replace("point", ""));
-        if (buttonIndex === index) {
-            button.style.backgroundColor = "#FF1493";
+class Feedback {
+    constructor() {
+        this.feedbacks = JSON.parse(localStorage.getItem("userData") || "[]");
+        this.selectedPoint = null;
+        this.renderFeedback();
+        const addButton = document.getElementById('add');
+        if (addButton) {
+            addButton.addEventListener('click', () => this.addFeedback());
         }
-        else {
-            button.style.backgroundColor = "#F5F5F5";
+        const renderDiv = document.querySelector('.render');
+        if (renderDiv) {
+            renderDiv.addEventListener('click', (event) => this.handleRenderClick(event));
         }
-    });
-    const pointButton = document.getElementById(`point${index}`);
-    const valueOfPoint = pointButton.innerText;
-    point = valueOfPoint;
-    const scoreInput = document.getElementById('inputData');
-    let users = JSON.parse(localStorage.getItem("userData") || "[]");
-    const newUser = {
-        id: Math.floor(Math.random() * 10000000),
-        name: valueOfPoint,
-        score: scoreInput.value
-    };
-    users.push(newUser);
-    // localStorage.setItem("userData", JSON.stringify(users));
-}
-// render
-function renderUser() {
-    let render = document.querySelector(".render");
-    let users = JSON.parse(localStorage.getItem("userData") || "[]");
-    users.forEach(user => {
-        render.innerHTML += `
-            <div class="icon">
-                    <button>${user.name}</button>
-                    <div class="iconMain">
-                        <a href=""><i class="fa-regular fa-pen-to-square"></i></a>
-                        <a href="" onclick = "deleteUser(${user.id})"><i class="fa-solid fa-xmark"></i></a>
-                    </div>
-                </div>
-                <div class="text">
-                    <p>${user.score}</p>
-                    <!-- render input -->
-                </div>`;
-    });
-}
-document.addEventListener("DOMContentLoaded", renderUser);
-// xoá
-function deleteUser(id) {
-    const confirmed = window.confirm("Are you sure you want to delete this user?");
-    if (!confirmed) {
-        return;
     }
-    let users = JSON.parse(localStorage.getItem("userData") || "[]");
-    users = users.filter(user => user.id !== id);
-    localStorage.setItem("userData", JSON.stringify(users));
-    renderUser();
+    handleRenderClick(event) {
+        const target = event.target;
+        const iconMainDiv = target.closest('.iconMain');
+        if (!iconMainDiv)
+            return;
+        const parentDiv = iconMainDiv.closest('div[data-id]');
+        if (!parentDiv)
+            return;
+        const id = parseInt(parentDiv.getAttribute('data-id') || '0', 10);
+        if (target.matches('.fa-pen-to-square')) {
+            this.editFeedback(id);
+        }
+        else if (target.matches('.fa-xmark')) {
+            this.deleteFeedback(id);
+        }
+    }
+    renderFeedback() {
+        const renderDiv = document.querySelector('.render');
+        if (renderDiv) {
+            renderDiv.innerHTML = '';
+            this.feedbacks.forEach(user => {
+                const feedbackDiv = document.createElement('div');
+                feedbackDiv.setAttribute('data-id', user.id.toString());
+                feedbackDiv.innerHTML = `
+                    <div class="icon">
+                        <button>${user.name}</button>
+                        <div class="iconMain">
+                            <a href="javascript:void(0)"><i class="fa-regular fa-pen-to-square"></i></a>
+                            <a href="javascript:void(0)"><i class="fa-solid fa-xmark"></i></a>
+                        </div>
+                    </div>
+                    <div class="text">
+                        <p>${user.score}</p>
+                    </div>`;
+                renderDiv.appendChild(feedbackDiv);
+            });
+        }
+    }
+    selectPoint(index) {
+        this.selectedPoint = index;
+        const pointButtons = document.querySelectorAll(".point button");
+        pointButtons.forEach(button => {
+            const buttonIndex = parseInt(button.id.replace("point", ""), 10);
+            button.style.backgroundColor = buttonIndex === index ? "#FF1493" : "#F5F5F5";
+        });
+    }
+    addFeedback() {
+        const scoreInput = document.getElementById('inputData');
+        if (this.selectedPoint === null || scoreInput.value.trim() === '') {
+            return;
+        }
+        const newUser = {
+            id: Math.floor(Math.random() * 10000000),
+            name: this.selectedPoint.toString(),
+            score: scoreInput.value.trim()
+        };
+        this.feedbacks.push(newUser);
+        this.updateLocalStorage();
+        this.renderFeedback();
+        scoreInput.value = '';
+        this.selectPoint(null);
+    }
+    editFeedback(id) {
+        const user = this.feedbacks.find(feedback => feedback.id === id);
+        if (user) {
+            const scoreInput = document.getElementById('inputData');
+            scoreInput.value = user.score;
+            this.selectPoint(parseInt(user.name, 10));
+            const addButton = document.getElementById('add');
+            if (addButton) {
+                addButton.innerText = 'Update';
+                addButton.onclick = () => this.updateFeedback(id);
+            }
+        }
+    }
+    updateFeedback(id) {
+        const scoreInput = document.getElementById('inputData');
+        const user = this.feedbacks.find(feedback => feedback.id === id);
+        if (user && this.selectedPoint !== null) {
+            user.name = this.selectedPoint.toString();
+            user.score = scoreInput.value.trim();
+            this.updateLocalStorage();
+            this.renderFeedback();
+            scoreInput.value = '';
+            this.selectPoint(null);
+            const addButton = document.getElementById('add');
+            if (addButton) {
+                addButton.innerText = 'Send';
+                addButton.onclick = () => this.addFeedback();
+            }
+        }
+    }
+    deleteFeedback(id) {
+        if (confirm("Bạn có chắc chắn muốn xóa?")) {
+            this.feedbacks = this.feedbacks.filter(user => user.id !== id);
+            this.updateLocalStorage();
+            this.renderFeedback();
+        }
+    }
+    updateLocalStorage() {
+        localStorage.setItem("userData", JSON.stringify(this.feedbacks));
+    }
 }
-// lấy value
-function add() {
-    const scoreInput = document.getElementById('inputData');
-    let users = JSON.parse(localStorage.getItem("userData") || "[]");
-    const newUser = {
-        id: Math.floor(Math.random() * 10000000),
-        name: point,
-        score: scoreInput.value
-    };
-    users.push(newUser);
-    localStorage.setItem("userData", JSON.stringify(users));
+const feedback = new Feedback();
+function selectPoint(index) {
+    feedback.selectPoint(index);
 }
